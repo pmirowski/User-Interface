@@ -1,45 +1,42 @@
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-
-try {
+try{
+    $screens = [System.Windows.Forms.Screen]::AllScreens
     $screens = [System.Windows.Forms.Screen]::AllScreens
     if (-not $screens) {
         Write-Host "No monitors detected."
         exit
     }
+    $minX = ($screens | ForEach-Object { $_.Bounds.X }) | Measure-Object -Minimum | Select-Object -ExpandProperty Minimum
+    $minY = ($screens | ForEach-Object { $_.Bounds.Y }) | Measure-Object -Minimum | Select-Object -ExpandProperty Minimum
+    $maxX = ($screens | ForEach-Object { $_.Bounds.Right }) | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
+    $maxY = ($screens | ForEach-Object { $_.Bounds.Bottom }) | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
 
-    $monitor_widths = 0
-    $monitor_height = 0
+    $totalWidth  = $maxX - $minX
+    $totalHeight = $maxY - $minY
+    try{
+        $form = New-Object System.Windows.Forms.Form
+        $form.Text = "Mirror Match"
+        $form.Size = New-Object System.Drawing.Size($totalWidth, $totalHeight)
+        $form.StartPosition = 'Manual'
+        $form.Location = New-Object System.Drawing.Point(0, 0)
 
-    foreach ($screen in $screens) {
-        $deviceName = $screen.DeviceName
-        $bounds = $screen.Bounds
-        $primary = $screen.Primary
-
-        Write-Host "Monitor: $deviceName"
-        Write-Host "  Resolution : $($bounds.Width) x $($bounds.Height)"
-        Write-Host "  Position   : X=$($bounds.X), Y=$($bounds.Y)"
-        Write-Host "  Primary    : $primary"
-        Write-Host "----------------------------------------"
-        $monitor_widths += $bounds.Width
-        if ($monitor_height -lt $bounds.Height) {
-            $monitor_height = $bounds.Height
-        }
-        $monitor_widths += $bounds.Widths	
-    }
-        
         try{
-            $form = New-Object System.Windows.Forms.Form
-            $form.Text = "Mirror Match"
-            $form.Size = New-Object System.Drawing.Size($monitor_widths, $monitor_height)
-            $form.StartPosition = 'Manual'
-            $form.Location = New-Object System.Drawing.Point(0, 0)
-            #$form.FormBorderStyle = 'None'
-            [void]$form.ShowDialog()
+            $browser = New-Object System.Windows.Forms.WebBrowser
+            $browser.Dock = 'Fill' 
+            $browser.ScriptErrorsSuppressed = $true  # Suppress script errors
+
+            $browser.Navigate("https://www.bing.com")
+
+            # Add the browser to the form
+            $form.Controls.Add($browser)
         } catch {
-            Write-Error "Error creating form array"
+            Write-Error "Error creating browser"
         }
-}
-catch {
+        #$form.FormBorderStyle = 'None'
+        [void]$form.ShowDialog()
+    } catch {
+        Write-Error "Error creating form array"
+    }
+} catch {
     Write-Error "Error retrieving monitor information: $_"
 }
